@@ -65,39 +65,42 @@ const saveNewsInfo = async (page, newsArr) => {
   createOrClearDirectory(imgsDir);
   console.log(newsArr);
   for (const item of newsArr) {
-    console.log(item.company);
-    const companyDir = path.join(imgsDir, item.company);
-    fs.mkdirSync(companyDir);
-    for (const newsItem of item.news) {
-      const inputPath = `imgs/${item.company}/${newsItem.title}.jpg`;
-      const tempPath = `imgs/${item.company}/temp.jpg`;
-      // 设置最大加载时间
-      const maxLoadTime = 10000; // 10秒
+    const typeDir = path.join(imgsDir, item.type);
+    fs.mkdirSync(typeDir);
+    for (const typeItem of item.news) {
+      const companyDir = path.join(imgsDir, typeItem.company);
+      fs.mkdirSync(companyDir);
+      for (const newsItem of typeItem.news) {
+        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.title.replaceAll(".", "")}.jpg`;
+        const tempPath = `imgs/${item.type}/${typeItem.company}/temp.jpg`;
+        // 设置最大加载时间
+        const maxLoadTime = 10000; // 10秒
 
-      try {
-        await Promise.race([
-          page.goto(newsItem.href),
-          new Promise((_, reject) =>
-            setTimeout(() => reject("Load Timeout"), maxLoadTime),
-          ),
-        ]);
+        try {
+          await Promise.race([
+            page.goto(newsItem.href),
+            new Promise((_, reject) =>
+              setTimeout(() => reject("Load Timeout"), maxLoadTime),
+            ),
+          ]);
 
-        // 如果页面在指定时间内加载完成，继续执行截图
-        await page.screenshot({
-          path: inputPath,
-          fullPage: true,
-        });
-      } catch (error) {
-        console.error(`Error loading page ${newsItem.href}: ${error}`);
-        // 即使加载超时，也继续执行截图
-        await page.screenshot({
-          path: inputPath,
-          fullPage: true,
-        });
+          // 如果页面在指定时间内加载完成，继续执行截图
+          await page.screenshot({
+            path: inputPath,
+            fullPage: true,
+          });
+        } catch (error) {
+          console.error(`Error loading page ${newsItem.href}: ${error}`);
+          // 即使加载超时，也继续执行截图
+          await page.screenshot({
+            path: inputPath,
+            fullPage: true,
+          });
+        }
+        await sharp(inputPath).jpeg({ quality: 50 }).toFile(tempPath);
+        // 将临时文件重命名为原始文件，覆盖原始文件
+        fs.renameSync(tempPath, inputPath);
       }
-      await sharp(inputPath).jpeg({ quality: 50 }).toFile(tempPath);
-      // 将临时文件重命名为原始文件，覆盖原始文件
-      fs.renameSync(tempPath, inputPath);
     }
   }
 };
@@ -142,7 +145,7 @@ const saveNewsInfo = async (page, newsArr) => {
   // console.log(newsArr);
 
   // 下面的需要继续调试，上面的数据没问题了
-  // await saveNewsInfo(page, newsArr);
+  await saveNewsInfo(page, newsArr);
   // 关闭浏览器
   await browser.close();
 })();
