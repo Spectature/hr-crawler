@@ -1,8 +1,9 @@
 import { chromium } from "playwright";
 import sharp from "sharp";
 import fs from "fs";
+import fse from "fs-extra";
 import path from "path";
-import { createOrClearDirectory } from "./util.js";
+import { buildTree, createOrClearDirectory } from "./util.js";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
@@ -67,11 +68,14 @@ const saveNewsInfo = async (page, newsArr) => {
   for (const item of newsArr) {
     const typeDir = path.join(imgsDir, item.type);
     fs.mkdirSync(typeDir);
+    console.log("创建类型文件夹");
     for (const typeItem of item.news) {
-      const companyDir = path.join(imgsDir, typeItem.company);
+      const companyDir = path.join(typeDir, typeItem.company);
       fs.mkdirSync(companyDir);
+      console.log("创建子公司文件夹");
       for (const newsItem of typeItem.news) {
-        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.title.replaceAll(".", "")}.jpg`;
+        //需要替换掉所有特殊字符，不然无法重命名
+        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.title.replace(/[<>:：？、"|?*\x00-\x1F]/g, "")}.jpg`;
         const tempPath = `imgs/${item.type}/${typeItem.company}/temp.jpg`;
         // 设置最大加载时间
         const maxLoadTime = 10000; // 10秒
@@ -105,47 +109,57 @@ const saveNewsInfo = async (page, newsArr) => {
   }
 };
 
+//  ai总结部分
+const aiSummary = () => {
+  axios
+    .post(
+      "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
+      {
+        model: "qwen2-1.5b-instruct",
+        input: {
+          prompt: `${searchTypeArr.join("、")},这是我需要你整理的话题${JSON.stringify(newsArr)}这是我整理的关于这些话题的数组，它里面有每个话题下各个公司的新闻，你访问一下这些新闻地址，然后给我总结一下，这些话题下的每个公司到底都发生了什么，按照话题类型1：公司1、公司2....：新闻总结，话题类型2：公司1、公司2....：新闻总结的方式去总结，每一个新闻总结的字数不少于100字。`,
+        },
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer sk-c2257034d2c8463999a9eea54da28683",
+        },
+      },
+    )
+    .then((res) => {
+      console.log("ai", res.data.output);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+};
+
+const generateJSON = async () => {
+  const dataFilePath = path.join(__dirname, "imageData.json");
+  const imgPathArr = await buildTree("imgs");
+  await fse.writeJson(dataFilePath, imgPathArr, { spaces: 2 });
+};
+
 (async () => {
-  // 启动浏览器
   const browser = await chromium.launch({
     headless: true, // false为显示浏览器，true为不显示浏览器
     executablePath:
       "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // 替换为你本地的 Chromium 路径
   });
   const page = await browser.newPage();
-
   // 访问目标页面
   await page.goto("https://www.google.com");
 
   const newsArr = await getNewsInfo(page, companies);
-  // console.log(JSON.stringify(newsArr));
-  // ai总结部分
-  // axios
-  //   .post(
-  //     "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
-  //     {
-  //       model: "qwen2-1.5b-instruct",
-  //       input: {
-  //         prompt: `${searchTypeArr.join("、")},这是我需要你整理的话题${JSON.stringify(newsArr)}这是我整理的关于这些话题的数组，它里面有每个话题下各个公司的新闻，你访问一下这些新闻地址，然后给我总结一下，这些话题下的每个公司到底都发生了什么，按照话题类型1：公司1、公司2....：新闻总结，话题类型2：公司1、公司2....：新闻总结的方式去总结，每一个新闻总结的字数不少于100字。`,
-  //       },
-  //     },
-  //     {
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         Authorization: "Bearer sk-c2257034d2c8463999a9eea54da28683",
-  //       },
-  //     },
-  //   )
-  //   .then((res) => {
-  //     console.log("ai", res.data.output);
-  //   })
-  //   .catch((err) => {
-  //     console.log(err);
-  //   });
-  // console.log(newsArr);
 
-  // 下面的需要继续调试，上面的数据没问题了
+  console.log(newsArr);
+
   await saveNewsInfo(page, newsArr);
+
+  await generateJSON();
+
+  console.log("数据更新完毕！");
   // 关闭浏览器
   await browser.close();
 })();
