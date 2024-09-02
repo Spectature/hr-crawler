@@ -141,7 +141,9 @@ const saveNewsInfo = async (page, newsArr) => {
             fullPage: true,
           });
         }
-        await sharp(inputPath).jpeg({ quality: 50 }).toFile(tempPath);
+        if (inputPath) {
+          await sharp(inputPath).jpeg({ quality: 50 }).toFile(tempPath);
+        }
         try {
           // 将临时文件重命名为原始文件，覆盖原始文件
           fs.renameSync(tempPath, inputPath);
