@@ -106,7 +106,7 @@ const saveNewsInfo = async (page, newsArr) => {
         const tempPath = `imgs/${item.type}/${typeItem.company}/temp.jpg`;
         const errorPath = `imgs/${item.type}/${typeItem.company}/error${uuidv4()}.jpg`;
         // 设置最大加载时间
-        const maxLoadTime = 10000; // 10秒
+        const maxLoadTime = 5000; // 10秒
 
         // 启用请求拦截并阻止字体请求
         await page.route("**/*", (route) => {
@@ -127,29 +127,30 @@ const saveNewsInfo = async (page, newsArr) => {
               setTimeout(() => reject("Load Timeout"), maxLoadTime),
             ),
           ]);
+        } catch (e) {
+          console.log(e);
+        }
 
+        try {
           // 如果页面在指定时间内加载完成，继续执行截图
           await page.screenshot({
             path: inputPath,
             fullPage: true,
           });
-        } catch (error) {
-          console.error(`Error loading page ${newsItem.href}: ${error}`);
-          // 即使加载超时，也继续执行截图
-          page.screenshot({
-            path: inputPath,
-            fullPage: true,
-          });
-        }
-        if (inputPath) {
-          await sharp(inputPath).jpeg({ quality: 50 }).toFile(tempPath);
-        }
-        try {
-          // 将临时文件重命名为原始文件，覆盖原始文件
-          fs.renameSync(tempPath, inputPath);
         } catch (e) {
-          // 将临时文件重命名为原始文件，覆盖原始文件
-          fs.renameSync(tempPath, errorPath);
+          console.log(e, inputPath);
+        }
+
+        const exists = await fse.pathExists(inputPath);
+
+        if (exists) {
+          try {
+            await sharp(inputPath).jpeg({ quality: 50 }).toFile(tempPath);
+            // 将临时文件重命名为原始文件，覆盖原始文件
+            fs.renameSync(tempPath, inputPath);
+          } catch (e) {
+            console.log(e, inputPath);
+          }
         }
       }
     }
@@ -213,7 +214,7 @@ const loadNewsInfo = async (page, companies) => {
 
 (async () => {
   const browser = await chromium.launch({
-    headless: false, // false为显示浏览器，true为不显示浏览器
+    headless: true, // false为显示浏览器，true为不显示浏览器
     executablePath:
       "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // 替换为你本地的 Chromium 路径
   });
