@@ -7,10 +7,37 @@ import { buildTree, createOrClearDirectory } from "./util.js";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 const searchTypeArr = ["裁员", "绩效季", "业务线调整"];
 
-const companies = ["IBM", "滴滴"];
+const companies = [
+  "字节",
+  "腾讯",
+  "快手",
+  "美团",
+  "百度",
+  "滴滴",
+  "网易",
+  "华为",
+  "小红书",
+  "拼多多",
+  "bilibili",
+  "虾皮",
+  "360",
+  "谷歌",
+  "Meta",
+  "京东",
+  "虹软",
+  "科大讯飞",
+  "月之暗面",
+  "minimax",
+  "商汤",
+  "旷视",
+  "云从",
+  "依图",
+  "微软",
+];
 // 获取当前文件的路径
 const __filename = fileURLToPath(import.meta.url);
 // 获取当前文件所在的目录
@@ -75,10 +102,23 @@ const saveNewsInfo = async (page, newsArr) => {
       console.log("创建子公司文件夹");
       for (const newsItem of typeItem.news) {
         //需要替换掉所有特殊字符，不然无法重命名
-        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.title.replace(/[<>:：？、"|?*\x00-\x1F]/g, "")}.jpg`;
+        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.title.replace(/[\sTikTok<>:：？、%"|?*\x00-\x1F]/g, "")}.jpg`;
         const tempPath = `imgs/${item.type}/${typeItem.company}/temp.jpg`;
+        const errorPath = `imgs/${item.type}/${typeItem.company}/error${uuidv4()}.jpg`;
         // 设置最大加载时间
         const maxLoadTime = 10000; // 10秒
+
+        // 启用请求拦截并阻止字体请求
+        await page.route("**/*", (route) => {
+          const request = route.request();
+          if (request.resourceType() === "font") {
+            // 阻止字体请求
+            route.abort();
+          } else {
+            // 继续其他请求
+            route.continue();
+          }
+        });
 
         try {
           await Promise.race([
@@ -96,14 +136,19 @@ const saveNewsInfo = async (page, newsArr) => {
         } catch (error) {
           console.error(`Error loading page ${newsItem.href}: ${error}`);
           // 即使加载超时，也继续执行截图
-          await page.screenshot({
+          page.screenshot({
             path: inputPath,
             fullPage: true,
           });
         }
         await sharp(inputPath).jpeg({ quality: 50 }).toFile(tempPath);
-        // 将临时文件重命名为原始文件，覆盖原始文件
-        fs.renameSync(tempPath, inputPath);
+        try {
+          // 将临时文件重命名为原始文件，覆盖原始文件
+          fs.renameSync(tempPath, inputPath);
+        } catch (e) {
+          // 将临时文件重命名为原始文件，覆盖原始文件
+          fs.renameSync(tempPath, errorPath);
+        }
       }
     }
   }
@@ -141,9 +186,32 @@ const generateJSON = async () => {
   await fse.writeJson(dataFilePath, imgPathArr, { spaces: 2 });
 };
 
+const loadNewsInfo = async (page, companies) => {
+  let newsArr;
+
+  try {
+    const dataFilePath = path.join(__dirname, "newsArr.json");
+    const data = await fse.readFile(dataFilePath, "utf8");
+
+    if (data) {
+      // 解析 JSON 数据并返回
+      newsArr = JSON.parse(data);
+    } else {
+      throw new Error("文件为空");
+    }
+  } catch (err) {
+    console.error("读取文件失败或文件为空:", err);
+    newsArr = await getNewsInfo(page, companies);
+    const dataFilePath = path.join(__dirname, "newsArr.json");
+    await fse.writeJson(dataFilePath, newsArr, { spaces: 2 });
+  }
+
+  return newsArr;
+};
+
 (async () => {
   const browser = await chromium.launch({
-    headless: true, // false为显示浏览器，true为不显示浏览器
+    headless: false, // false为显示浏览器，true为不显示浏览器
     executablePath:
       "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // 替换为你本地的 Chromium 路径
   });
@@ -151,8 +219,9 @@ const generateJSON = async () => {
   // 访问目标页面
   await page.goto("https://www.google.com");
 
-  const newsArr = await getNewsInfo(page, companies);
+  let newsArr;
 
+  newsArr = await loadNewsInfo(page, companies);
   console.log(newsArr);
 
   await saveNewsInfo(page, newsArr);
