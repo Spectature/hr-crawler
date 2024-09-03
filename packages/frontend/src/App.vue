@@ -5,9 +5,10 @@ import { computed, ref } from 'vue'
 const newArr = ref()
 const createTime = ref()
 const currentImgUrl = ref()
+const currentOriginUrl = ref()
 const itemClick = (item: any) => {
-  currentImgUrl.value = item
-  console.log(item)
+  currentImgUrl.value = item.imgHref
+  currentOriginUrl.value = item.href
 }
 
 // #region 更新数据部分逻辑
@@ -19,7 +20,7 @@ const currentStage = ref('')
 let startTime: any
 
 const refresh = () => {
-  startTime = Date.now();
+  startTime = Date.now()
   btnLoading.value = true
   axios
     .get('/api/run-index')
@@ -42,42 +43,42 @@ const refresh = () => {
 
   // 当 WebSocket 连接打开时触发
   socket.onopen = () => {
-    console.log('WebSocket connection established');
+    console.log('WebSocket connection established')
 
     // 向服务器发送消息
-    socket.send('Hello Server!');
-  };
+    socket.send('Hello Server!')
+  }
 
   // 当收到服务器消息时触发
   socket.onmessage = (event) => {
     progressPercent.value = JSON.parse(event.data).progress
     currentStage.value = JSON.parse(event.data).currentStage
-    console.log('Message from server!');
-  };
+    console.log('Message from server!')
+  }
 
   // 当 WebSocket 连接关闭时触发
   socket.onclose = () => {
-    console.log('WebSocket connection closed');
-  };
+    console.log('WebSocket connection closed')
+  }
 
   // 当发生错误时触发
   socket.onerror = (error) => {
-    console.error('WebSocket error:', error);
-  };
+    console.error('WebSocket error:', error)
+  }
 }
 
 const elapsedTime = ref()
 
 setInterval(() => {
-  elapsedTime.value = Date.now() - startTime;
+  elapsedTime.value = Date.now() - startTime
 })
 
 const formattedElapsedTime = computed(() => {
-  const hours = Math.floor(elapsedTime.value / (1000 * 60 * 60));
-  const minutes = Math.floor((elapsedTime.value % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((elapsedTime.value % (1000 * 60)) / 1000);
+  const hours = Math.floor(elapsedTime.value / (1000 * 60 * 60))
+  const minutes = Math.floor((elapsedTime.value % (1000 * 60 * 60)) / (1000 * 60))
+  const seconds = Math.floor((elapsedTime.value % (1000 * 60)) / 1000)
 
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
 
 // #endregion
@@ -115,35 +116,31 @@ init()
     <div class="content">
       <div class="top">
         <div class="button">
-          <a-button :loading="btnLoading" type="primary" @click="refresh">
-            数据更新
-          </a-button>
+          <a-button :loading="btnLoading" type="primary" @click="refresh"> 数据更新 </a-button>
         </div>
         <!--         -->
         <div v-if="btnLoading" class="progress">
           <a-progress :percent="progressPercent" status="active" />
           <h5>当前正处于{{ currentStage }}阶段</h5>
-          <h5>
-            已耗时： {{ formattedElapsedTime }}
-          </h5>
+          <h5>已耗时： {{ formattedElapsedTime }}</h5>
         </div>
 
         <div />
       </div>
 
       <a-tabs type="card">
-        <a-tab-pane v-for="(item, key, index) in newArr" :key="index" :tab="key">
+        <a-tab-pane v-for="(item, index) in newArr" :key="index" :tab="item.type">
           <div class="main-content">
             <div class="left">
               <a-menu mode="inline" style="width: 256px">
-                <template v-for="(childrenItem, childrenKey) in item">
+                <template v-for="childrenItem in item.news">
                   <a-sub-menu>
                     <template #title>
-                      {{ childrenKey }}
+                      {{ childrenItem.company }}
                     </template>
-                    <template v-for="(subItem, subKey) in childrenItem" :key="subKey">
+                    <template v-for="subItem in childrenItem.news" :key="subItem.imgHref">
                       <a-menu-item @click="itemClick(subItem)">
-                        {{ subKey }}
+                        {{ subItem.title }}
                       </a-menu-item>
                     </template>
                   </a-sub-menu>
@@ -151,6 +148,12 @@ init()
               </a-menu>
             </div>
             <div class="right">
+              <template v-if="currentOriginUrl">
+                原始地址：
+                <a target="_blank" :href="currentOriginUrl">
+                  {{ currentOriginUrl }}
+                </a>
+              </template>
               <img :src="currentImgUrl" alt="" />
             </div>
           </div>

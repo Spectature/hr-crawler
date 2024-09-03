@@ -10,6 +10,7 @@ import axios from "axios";
 import { WebSocketServer } from "ws";
 import express from "express";
 import http from "http";
+import { nanoid } from "nanoid";
 
 const searchTypeArr = ["裁员", "绩效季", "业务线调整"];
 
@@ -105,7 +106,7 @@ const getNewsInfo = async (page, companies) => {
       await page.waitForLoadState("networkidle");
 
       // 提取前10条搜索结果的标题和链接
-      const newsArr = await page.evaluate(() => {
+      let newsArr = await page.evaluate(() => {
         const news = Array.from(document.querySelectorAll("div.MjjYud"));
         return news
           .slice(0, 11)
@@ -119,6 +120,11 @@ const getNewsInfo = async (page, companies) => {
             (item) => item.title !== undefined && item.href !== undefined,
           );
       });
+
+      newsArr = newsArr.map((item) => ({
+        ...item,
+        id: nanoid(10), // 在 Node.js 环境中生成 `nanoid`
+      }));
 
       companyNews.push({
         company: item,
@@ -156,7 +162,7 @@ const saveNewsInfo = async (page, newsArr) => {
         );
 
         //需要替换掉所有特殊字符，不然无法重命名
-        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.title.replace(/[\s<>:：？、%"|?*\x00-\x1F]/g, "")}.jpg`;
+        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.id}&${newsItem.title.replace(/[\s<>:：？、%"|?*\x00-\x1F]/g, "")}.jpg`;
         const tempPath = `imgs/${item.type}/${typeItem.company}/temp.jpg`;
         // 设置最大加载时间
         const maxLoadTime = 5000; // 5秒
@@ -223,11 +229,37 @@ const aiSummary = () => {
     });
 };
 
-const generateJSON = async () => {
+const generateJSON = async (newsArr) => {
   const dataFilePath = path.join(__dirname, "imageData.json");
-  const imgPathArr = await buildTree("imgs");
-  console.log(imgPathArr);
-  await fse.writeJson(dataFilePath, imgPathArr, { spaces: 2 });
+
+  for (const searchType of newsArr) {
+    for (const company of searchType.news) {
+      for (const newsItem of company.news) {
+        const directoryPath = path.join(
+          __dirname,
+          `imgs/${searchType.type}/${company.company}`,
+        );
+        try {
+          // 读取文件夹中的所有文件名
+          const files = await fse.readdir(directoryPath);
+
+          // 过滤出匹配的文件
+          files.filter((fileName) => {
+            // 获取文件名中&符号前的部分
+            const uuid = fileName.split("&")[0];
+
+            // 与目标id进行比较
+            if (uuid === newsItem.id) {
+              newsItem.imgHref = `http://localhost:8080/${searchType.type}/${company.company}/${fileName}`;
+            }
+          });
+        } catch (err) {
+          console.error("读取文件夹时发生错误:", err);
+        }
+      }
+    }
+  }
+  await fse.writeJson(dataFilePath, newsArr, { spaces: 2 });
   wsData.progress = 100;
 };
 
@@ -270,13 +302,12 @@ const loadNewsInfo = async (page, companies) => {
   wsData.progress = 0;
 
   let newsArr;
-
-  // newsArr = await loadNewsInfo(page, companies);
+  newsArr = await loadNewsInfo(page, companies);
   // console.log(newsArr);
-
+  //
   // await saveNewsInfo(page, newsArr);
   //
-  await generateJSON();
+  await generateJSON(newsArr);
 
   console.log("数据更新完毕！");
   // 关闭浏览器
