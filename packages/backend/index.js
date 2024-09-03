@@ -7,7 +7,9 @@ import { buildTree, createOrClearDirectory } from "./util.js";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
-import { v4 as uuidv4 } from "uuid";
+import { WebSocketServer } from "ws";
+import express from "express";
+import http from "http";
 
 const searchTypeArr = ["裁员", "绩效季", "业务线调整"];
 
@@ -43,11 +45,56 @@ const __filename = fileURLToPath(import.meta.url);
 // 获取当前文件所在的目录
 const __dirname = dirname(__filename);
 
+// #region ws部分逻辑
+let wsData = {
+  currentStage: "",
+  progress: 0,
+};
+const app = express();
+const port = 3001;
+// 创建HTTP服务器
+const server = http.createServer(app);
+// 创建WebSocket服务器并附加到HTTP服务器上
+const wss = new WebSocketServer({ server });
+
+let wsInterval = null;
+
+// 当有客户端连接时
+wss.on("connection", (ws) => {
+  console.log("Client connected");
+
+  // 定时向客户端发送数据
+  wsInterval = setInterval(() => {
+    ws.send(JSON.stringify(wsData));
+  }, 1000); // 每隔1秒发送一次数据
+
+  // 当客户端断开连接时，清除定时器
+  ws.on("close", () => {
+    console.log("Client disconnected");
+    clearInterval(wsInterval);
+  });
+});
+
+// 启动服务器
+server.listen(port, () => {
+  console.log(`WSServer is running on http://localhost:${port}`);
+});
+
+const formatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+});
+
 const getNewsInfo = async (page, companies) => {
+  let progress = 0;
   const typeNews = [];
   for (const searchType of searchTypeArr) {
     const companyNews = [];
     for (const item of companies) {
+      progress++;
+      wsData.progress = formatter.format(
+        (progress * 10) / companies.length / searchTypeArr.length,
+      );
       // 在搜索栏中输入“裁员”
       await page.fill('textarea[name="q"]', `${item} ${searchType}`);
 
@@ -61,7 +108,7 @@ const getNewsInfo = async (page, companies) => {
       const newsArr = await page.evaluate(() => {
         const news = Array.from(document.querySelectorAll("div.MjjYud"));
         return news
-          .slice(0, 10)
+          .slice(0, 11)
           .map((newItem) => {
             return {
               title: newItem.querySelector("h3")?.innerText,
@@ -88,6 +135,8 @@ const getNewsInfo = async (page, companies) => {
 };
 
 const saveNewsInfo = async (page, newsArr) => {
+  let progress = 0;
+  wsData.currentStage = "保存新闻图片";
   // 定义文件夹路径
   const imgsDir = path.join(__dirname, "imgs");
   createOrClearDirectory(imgsDir);
@@ -101,25 +150,16 @@ const saveNewsInfo = async (page, newsArr) => {
       fs.mkdirSync(companyDir);
       console.log("创建子公司文件夹");
       for (const newsItem of typeItem.news) {
+        progress++;
+        wsData.progress = formatter.format(
+          10 + (progress * 85) / companies.length / searchTypeArr.length / 10,
+        );
+
         //需要替换掉所有特殊字符，不然无法重命名
-        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.title.replace(/[\sTikTok<>:：？、%"|?*\x00-\x1F]/g, "")}.jpg`;
+        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.title.replace(/[\s<>:：？、%"|?*\x00-\x1F]/g, "")}.jpg`;
         const tempPath = `imgs/${item.type}/${typeItem.company}/temp.jpg`;
-        const errorPath = `imgs/${item.type}/${typeItem.company}/error${uuidv4()}.jpg`;
         // 设置最大加载时间
-        const maxLoadTime = 5000; // 10秒
-
-        // 启用请求拦截并阻止字体请求
-        await page.route("**/*", (route) => {
-          const request = route.request();
-          if (request.resourceType() === "font") {
-            // 阻止字体请求
-            route.abort();
-          } else {
-            // 继续其他请求
-            route.continue();
-          }
-        });
-
+        const maxLoadTime = 5000; // 5秒
         try {
           await Promise.race([
             page.goto(newsItem.href),
@@ -186,10 +226,13 @@ const aiSummary = () => {
 const generateJSON = async () => {
   const dataFilePath = path.join(__dirname, "imageData.json");
   const imgPathArr = await buildTree("imgs");
+  console.log(imgPathArr);
   await fse.writeJson(dataFilePath, imgPathArr, { spaces: 2 });
+  wsData.progress = 100;
 };
 
 const loadNewsInfo = async (page, companies) => {
+  wsData.currentStage = "搜索所有新闻信息";
   let newsArr;
 
   try {
@@ -199,6 +242,7 @@ const loadNewsInfo = async (page, companies) => {
     if (data) {
       // 解析 JSON 数据并返回
       newsArr = JSON.parse(data);
+      wsData.progress = 10;
     } else {
       throw new Error("文件为空");
     }
@@ -214,7 +258,7 @@ const loadNewsInfo = async (page, companies) => {
 
 (async () => {
   const browser = await chromium.launch({
-    headless: true, // false为显示浏览器，true为不显示浏览器
+    headless: false, // false为显示浏览器，true为不显示浏览器
     executablePath:
       "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // 替换为你本地的 Chromium 路径
   });
@@ -222,16 +266,20 @@ const loadNewsInfo = async (page, companies) => {
   // 访问目标页面
   await page.goto("https://www.google.com");
 
+  wsData.currentStage = "none";
+  wsData.progress = 0;
+
   let newsArr;
 
-  newsArr = await loadNewsInfo(page, companies);
-  console.log(newsArr);
+  // newsArr = await loadNewsInfo(page, companies);
+  // console.log(newsArr);
 
-  await saveNewsInfo(page, newsArr);
-
+  // await saveNewsInfo(page, newsArr);
+  //
   await generateJSON();
 
   console.log("数据更新完毕！");
   // 关闭浏览器
   await browser.close();
+  clearInterval(wsInterval);
 })();

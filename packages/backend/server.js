@@ -3,6 +3,7 @@ import fse from "fs-extra";
 import path from "path";
 import child_process from "child_process";
 import { fileURLToPath } from "url";
+import { DateTime } from "luxon";
 
 // ESM 环境中获取 __dirname 和 __filename
 const __filename = fileURLToPath(import.meta.url);
@@ -23,6 +24,7 @@ app.get("/data", async (req, res) => {
   }
 });
 
+//刷新后端数据
 app.get("/run-index", (req, res) => {
   const process = child_process.spawn("node", ["index.js"]);
   let output = "";
@@ -37,9 +39,30 @@ app.get("/run-index", (req, res) => {
   });
 
   process.on("close", (code) => {
-    console.log(`Process exited with code ${code}`);
+    console.log(`进程结束 ${code}`);
     res.json({ status: "success", message: output });
   });
+});
+
+// 获取当前数据时间
+app.get("/currentActiveTime", async (req, res) => {
+  const jsonFilePath = path.join(__dirname, "imageData.json");
+
+  try {
+    const stats = await fse.stat(jsonFilePath); // 使用 fs-extra 获取文件信息
+    let lastModifiedTime = stats.mtime; // 获取文件创建时间
+    console.log(lastModifiedTime);
+    // 转换为东八区时间
+    lastModifiedTime = DateTime.fromJSDate(lastModifiedTime, { zone: "UTC" })
+      .setZone("UTC+8") // 或者 'UTC+8'
+      .toFormat("yyyy-MM-dd HH:mm:ss");
+    res.json({ lastModifiedTime });
+    console.log(lastModifiedTime);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ error: "File not found or error retrieving file stats" });
+  }
 });
 
 // 启动服务器
