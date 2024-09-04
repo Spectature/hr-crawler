@@ -344,7 +344,7 @@ init()
               </div>
               <a-space>
                 <a-button
-                  v-show="!editSearchType"
+                  v-show="!editCompany"
                   class="edit"
                   size="small"
                   @click="selectAll('company')"
