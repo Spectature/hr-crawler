@@ -12,7 +12,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-// 处理请求，返回 JSON 文件的数据
+app.use(express.json());
+
+// 处理请求，返回图片文件的数据
 app.get("/data", async (req, res) => {
   const jsonFilePath = path.join(__dirname, "imageData.json");
 
@@ -21,6 +23,36 @@ app.get("/data", async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).send("Error reading JSON file");
+  }
+});
+
+// 处理请求，返回搜索文件的数据
+app.get("/searchData", async (req, res) => {
+  const jsonFilePath = path.join(__dirname, "filter.json");
+
+  try {
+    const data = await fse.readJson(jsonFilePath);
+    res.json(data);
+  } catch (err) {
+    res.status(500).send("Error reading JSON file");
+  }
+});
+
+// 创建更新搜索文件的接口
+app.post("/updateSearchData", async (req, res) => {
+  const jsonFilePath = path.join(__dirname, "filter.json");
+  try {
+    const newData = req.body; // 从请求体获取数据
+
+    // 将更新后的内容写回到JSON文件
+    await fse.writeJson(jsonFilePath, { ...newData }, { spaces: 2 });
+
+    // 返回成功响应
+    res.status(200).json({ message: "JSON file updated successfully!" });
+  } catch (error) {
+    // 处理错误
+    console.error("Error updating JSON file:", error);
+    res.status(500).json({ message: "Failed to update JSON file." });
   }
 });
 
