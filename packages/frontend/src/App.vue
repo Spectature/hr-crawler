@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import axios from 'axios'
+import type { Ref } from 'vue';
 import { computed, nextTick, reactive, ref } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue';
 
@@ -83,8 +84,8 @@ const formattedElapsedTime = computed(() => {
 })
 
 // 数据录入部分逻辑
-const selectedSearchType = ref([])
-const selectedCompany = ref([])
+const selectedSearchType: Ref<boolean[]> = ref([])
+const selectedCompany: Ref<boolean[]> = ref([])
 const editSearchType = ref(false)
 const editCompany = ref(false)
 
@@ -160,6 +161,21 @@ const editTag = (currentType: boolean, type: string) => {
       company: companyData.tags,
     })
   }
+}
+
+const selectAll = (type: string) => {
+  let currentSelectData;
+  let currentDataArray
+  if (type === 'searchType') {
+    currentSelectData = selectedSearchType
+    currentDataArray = searchTypeData.tags
+  } else {
+    currentSelectData = selectedCompany
+    currentDataArray = companyData.tags
+  }
+  currentDataArray.forEach(() => {
+    currentSelectData.value.push(true)
+  })
 }
 
 // #endregion
@@ -238,9 +254,14 @@ init()
                   </a-tag>
                 </a-space>
               </div>
-              <a-button class="edit" type="primary" size="small" @click="editTag(editSearchType, 'searchType')">
-                {{ editSearchType ? '完成编辑' : '编辑' }}
-              </a-button>
+              <a-space>
+                <a-button v-show="!editSearchType" class="edit" size="small" @click="selectAll('searchType')">
+                  全选
+                </a-button>
+                <a-button class="edit" type="primary" size="small" @click="editTag(editSearchType, 'searchType')">
+                  {{ editSearchType ? '完成编辑' : '编辑' }}
+                </a-button>
+              </a-space>
             </a-descriptions-item>
             <a-descriptions-item label="搜索公司：">
               <div v-show="!editCompany" class="showTag">
@@ -273,9 +294,14 @@ init()
                   </a-tag>
                 </a-space>
               </div>
-              <a-button class="edit" type="primary" size="small" @click="editTag(editCompany, 'company')">
-                {{ editCompany ? '完成编辑' : '编辑' }}
-              </a-button>
+              <a-space>
+                <a-button v-show="!editSearchType" class="edit" size="small" @click="selectAll('company')">
+                  全选
+                </a-button>
+                <a-button class="edit" type="primary" size="small" @click="editTag(editCompany, 'company')">
+                  {{ editCompany ? '完成编辑' : '编辑' }}
+                </a-button>
+              </a-space>
             </a-descriptions-item>
             <template #extra>
               <div class="button">
