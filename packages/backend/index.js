@@ -3,7 +3,11 @@ import sharp from "sharp";
 import fs from "fs";
 import fse from "fs-extra";
 import path from "path";
-import { createOrClearDirectory } from "./util.js";
+import {
+  compare,
+  compareStringArrays,
+  createOrClearDirectory,
+} from "./util.js";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
@@ -240,23 +244,23 @@ const loadNewsInfo = async (page, companies) => {
   wsData.currentStage = "搜索选中新闻信息";
   let newsArr;
 
-  try {
-    const dataFilePath = path.join(__dirname, "newsArr.json");
-    const data = await fse.readFile(dataFilePath, "utf8");
-
-    if (data) {
-      // 解析 JSON 数据并返回
-      newsArr = JSON.parse(data);
-      wsData.progress = 10;
-    } else {
-      throw new Error("文件为空");
-    }
-  } catch (err) {
-    console.error("读取文件失败或文件为空:", err);
-    newsArr = await getNewsInfo(page, companies);
-    const dataFilePath = path.join(__dirname, "newsArr.json");
-    await fse.writeJson(dataFilePath, newsArr, { spaces: 2 });
-  }
+  // try {
+  //   const dataFilePath = path.join(__dirname, "newsArr.json");
+  //   const data = await fse.readFile(dataFilePath, "utf8");
+  //
+  //   if (data) {
+  //     // 解析 JSON 数据并返回
+  //     newsArr = JSON.parse(data);
+  //     wsData.progress = 10;
+  //   } else {
+  //     throw new Error("文件为空");
+  //   }
+  // } catch (err) {
+  //   console.error("读取文件失败或文件为空:", err);
+  newsArr = await getNewsInfo(page, companies);
+  const res = compare();
+  // await fse.writeJson(dataFilePath, newsArr, { spaces: 2 });
+  // }
 
   return newsArr;
 };
@@ -264,8 +268,8 @@ const loadNewsInfo = async (page, companies) => {
 const loadFilterData = async () => {
   const dataFilePath = path.join(__dirname, "selectedFilter.json");
   const data = await fse.readFile(dataFilePath, "utf8");
-  searchTypeArr = JSON.parse(data.searchType);
-  companies = JSON.parse(data.company);
+  searchTypeArr = JSON.parse(data).searchType;
+  companies = JSON.parse(data).company;
 };
 
 (async () => {
@@ -288,11 +292,11 @@ const loadFilterData = async () => {
   // console.log(newsArr);
   //
   // await saveNewsInfo(page, newsArr);
+  // //
+  // await generateJSON(newsArr);
   //
-  await generateJSON(newsArr);
-
-  console.log("数据更新完毕！");
-  // 关闭浏览器
-  await browser.close();
-  clearInterval(wsInterval);
+  // console.log("数据更新完毕！");
+  // // 关闭浏览器
+  // await browser.close();
+  // clearInterval(wsInterval);
 })();

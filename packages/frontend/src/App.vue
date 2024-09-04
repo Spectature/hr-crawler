@@ -34,7 +34,13 @@ const handelSelectedData = () => {
   }
 }
 
-const refresh = () => {
+const refresh = async () => {
+  // 更新后端过滤条件数据
+  await axios.post('/api/updateSearchData', {
+    searchType: searchTypeData.tags,
+    company: companyData.tags
+  })
+
   const selectData = handelSelectedData()
   if (selectData.company.length === 0 || selectData.searchType.length === 0) {
     message.error('至少选择一个公司和搜索类型！')
@@ -164,7 +170,7 @@ const removeTag = (tag: string, type: string) => {
   currentData.tags = currentData.tags.filter((item) => item !== tag)
 }
 
-const editTag = (currentType: boolean, type: string) => {
+const editTag = (type: string) => {
   let currentData
   if (type === 'searchType') {
     currentData = editSearchType
@@ -172,13 +178,6 @@ const editTag = (currentType: boolean, type: string) => {
     currentData = editCompany
   }
   currentData.value = !currentData.value
-  // 编辑状态下需要提交信息
-  if (currentType) {
-    axios.post('/api/updateSearchData', {
-      searchType: searchTypeData.tags,
-      company: companyData.tags
-    })
-  }
 }
 
 const selectAll = (type: string) => {
@@ -291,12 +290,7 @@ init()
                 >
                   全选
                 </a-button>
-                <a-button
-                  class="edit"
-                  type="primary"
-                  size="small"
-                  @click="editTag(editSearchType, 'searchType')"
-                >
+                <a-button class="edit" type="primary" size="small" @click="editTag('searchType')">
                   {{ editSearchType ? '完成编辑' : '编辑' }}
                 </a-button>
               </a-space>
@@ -351,12 +345,7 @@ init()
                 >
                   全选
                 </a-button>
-                <a-button
-                  class="edit"
-                  type="primary"
-                  size="small"
-                  @click="editTag(editCompany, 'company')"
-                >
+                <a-button class="edit" type="primary" size="small" @click="editTag('company')">
                   {{ editCompany ? '完成编辑' : '编辑' }}
                 </a-button>
               </a-space>

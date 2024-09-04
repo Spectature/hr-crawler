@@ -40,7 +40,7 @@ app.get("/searchData", async (req, res) => {
 
 // 创建更新搜索文件的接口
 app.post("/updateSearchData", async (req, res) => {
-  const jsonFilePath = path.join(__dirname, "filter.json");
+  const jsonFilePath = path.join(__dirname, "currentFilter.json");
   try {
     const newData = req.body; // 从请求体获取数据
 
@@ -68,22 +68,22 @@ app.post("/run-index", async (req, res) => {
     console.log(e);
   }
 
-  // const process = child_process.spawn("node", ["index.js"]);
-  // let output = "";
-  //
-  // process.stdout.on("data", (data) => {
-  //   console.log(`stdout: ${data}`); // 打印标准输出到控制台
-  //   output += data; // 收集数据
-  // });
-  //
-  // process.stderr.on("data", (data) => {
-  //   console.error(`stderr: ${data}`); // 打印错误输出到控制台
-  // });
-  //
-  // process.on("close", (code) => {
-  //   console.log(`进程结束 ${code}`);
-  //   res.json({ status: "success", message: output });
-  // });
+  const process = child_process.spawn("node", ["index.js"]);
+  let output = "";
+
+  process.stdout.on("data", (data) => {
+    console.log(`stdout: ${data}`); // 打印标准输出到控制台
+    output += data; // 收集数据
+  });
+
+  process.stderr.on("data", (data) => {
+    console.error(`stderr: ${data}`); // 打印错误输出到控制台
+  });
+
+  process.on("close", (code) => {
+    console.log(`进程结束 ${code}`);
+    res.json({ status: "success", message: output });
+  });
 });
 
 // 获取当前数据时间
