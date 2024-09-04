@@ -57,23 +57,33 @@ app.post("/updateSearchData", async (req, res) => {
 });
 
 //刷新后端数据
-app.get("/run-index", (req, res) => {
-  const process = child_process.spawn("node", ["index.js"]);
-  let output = "";
+app.post("/run-index", async (req, res) => {
+  const jsonFilePath = path.join(__dirname, "selectedFilter.json");
+  try {
+    const newData = req.body; // 从请求体获取数据
 
-  process.stdout.on("data", (data) => {
-    console.log(`stdout: ${data}`); // 打印标准输出到控制台
-    output += data; // 收集数据
-  });
+    // 将更新后的内容写回到JSON文件
+    await fse.writeJson(jsonFilePath, { ...newData }, { spaces: 2 });
+  } catch (e) {
+    console.log(e);
+  }
 
-  process.stderr.on("data", (data) => {
-    console.error(`stderr: ${data}`); // 打印错误输出到控制台
-  });
-
-  process.on("close", (code) => {
-    console.log(`进程结束 ${code}`);
-    res.json({ status: "success", message: output });
-  });
+  // const process = child_process.spawn("node", ["index.js"]);
+  // let output = "";
+  //
+  // process.stdout.on("data", (data) => {
+  //   console.log(`stdout: ${data}`); // 打印标准输出到控制台
+  //   output += data; // 收集数据
+  // });
+  //
+  // process.stderr.on("data", (data) => {
+  //   console.error(`stderr: ${data}`); // 打印错误输出到控制台
+  // });
+  //
+  // process.on("close", (code) => {
+  //   console.log(`进程结束 ${code}`);
+  //   res.json({ status: "success", message: output });
+  // });
 });
 
 // 获取当前数据时间

@@ -3,7 +3,7 @@ import sharp from "sharp";
 import fs from "fs";
 import fse from "fs-extra";
 import path from "path";
-import { buildTree, createOrClearDirectory } from "./util.js";
+import { createOrClearDirectory } from "./util.js";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
@@ -12,35 +12,8 @@ import express from "express";
 import http from "http";
 import { nanoid } from "nanoid";
 
-const searchTypeArr = ["裁员", "绩效季", "业务线调整"];
-
-const companies = [
-  "字节",
-  "腾讯",
-  "快手",
-  "美团",
-  "百度",
-  "滴滴",
-  "网易",
-  "华为",
-  "小红书",
-  "拼多多",
-  "bilibili",
-  "虾皮",
-  "360",
-  "谷歌",
-  "Meta",
-  "京东",
-  "虹软",
-  "科大讯飞",
-  "月之暗面",
-  "minimax",
-  "商汤",
-  "旷视",
-  "云从",
-  "依图",
-  "微软",
-];
+let searchTypeArr;
+let companies;
 // 获取当前文件的路径
 const __filename = fileURLToPath(import.meta.url);
 // 获取当前文件所在的目录
@@ -264,7 +237,7 @@ const generateJSON = async (newsArr) => {
 };
 
 const loadNewsInfo = async (page, companies) => {
-  wsData.currentStage = "搜索所有新闻信息";
+  wsData.currentStage = "搜索选中新闻信息";
   let newsArr;
 
   try {
@@ -288,7 +261,16 @@ const loadNewsInfo = async (page, companies) => {
   return newsArr;
 };
 
+const loadFilterData = async () => {
+  const dataFilePath = path.join(__dirname, "selectedFilter.json");
+  const data = await fse.readFile(dataFilePath, "utf8");
+  searchTypeArr = JSON.parse(data.searchType);
+  companies = JSON.parse(data.company);
+};
+
 (async () => {
+  await loadFilterData();
+
   const browser = await chromium.launch({
     headless: false, // false为显示浏览器，true为不显示浏览器
     executablePath:

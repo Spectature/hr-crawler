@@ -21,11 +21,24 @@ const currentStage = ref('')
 // 初始化开始时间
 let startTime: any
 
+const handelSelectedData = () => {
+  return {
+    searchType: selectedSearchType.value
+      .map((item, index) => item ? searchTypeData.tags[index] : null)
+      .filter(item => item !== null), // 只保留不为null的元素
+
+    company: selectedCompany.value
+      .map((item, index) => item ? companyData.tags[index] : null)
+      .filter(item => item !== null), // 只保留不为null的元素
+  };
+}
+
 const refresh = () => {
+  const selectData = handelSelectedData()
   startTime = Date.now()
   btnLoading.value = true
   axios
-    .get('/api/run-index')
+    .post('/api/run-index', { ...selectData })
     .then((res) => {
       newArr.value = res.data
       console.log(res)
@@ -41,32 +54,32 @@ const refresh = () => {
       console.log(err)
     })
 
-  const socket = new WebSocket('ws://localhost:3001')
-
-  // 当 WebSocket 连接打开时触发
-  socket.onopen = () => {
-    console.log('WebSocket connection established')
-
-    // 向服务器发送消息
-    socket.send('Hello Server!')
-  }
-
-  // 当收到服务器消息时触发
-  socket.onmessage = (event) => {
-    progressPercent.value = JSON.parse(event.data).progress
-    currentStage.value = JSON.parse(event.data).currentStage
-    console.log('Message from server!')
-  }
-
-  // 当 WebSocket 连接关闭时触发
-  socket.onclose = () => {
-    console.log('WebSocket connection closed')
-  }
-
-  // 当发生错误时触发
-  socket.onerror = (error) => {
-    console.error('WebSocket error:', error)
-  }
+  // const socket = new WebSocket('ws://localhost:3001')
+  //
+  // // 当 WebSocket 连接打开时触发
+  // socket.onopen = () => {
+  //   console.log('WebSocket connection established')
+  //
+  //   // 向服务器发送消息
+  //   socket.send('Hello Server!')
+  // }
+  //
+  // // 当收到服务器消息时触发
+  // socket.onmessage = (event) => {
+  //   progressPercent.value = JSON.parse(event.data).progress
+  //   currentStage.value = JSON.parse(event.data).currentStage
+  //   console.log('Message from server!')
+  // }
+  //
+  // // 当 WebSocket 连接关闭时触发
+  // socket.onclose = () => {
+  //   console.log('WebSocket connection closed')
+  // }
+  //
+  // // 当发生错误时触发
+  // socket.onerror = (error) => {
+  //   console.error('WebSocket error:', error)
+  // }
 }
 
 const elapsedTime = ref()
