@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import axios from 'axios'
-import type { Ref } from 'vue';
+import type { Ref } from 'vue'
 import { computed, nextTick, reactive, ref } from 'vue'
-import { PlusOutlined } from '@ant-design/icons-vue';
+import { PlusOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
 
 const newArr = ref()
 const createTime = ref()
@@ -24,17 +25,21 @@ let startTime: any
 const handelSelectedData = () => {
   return {
     searchType: selectedSearchType.value
-      .map((item, index) => item ? searchTypeData.tags[index] : null)
-      .filter(item => item !== null), // 只保留不为null的元素
+      .map((item, index) => (item ? searchTypeData.tags[index] : null))
+      .filter((item) => item !== null), // 只保留不为null的元素
 
     company: selectedCompany.value
-      .map((item, index) => item ? companyData.tags[index] : null)
-      .filter(item => item !== null), // 只保留不为null的元素
-  };
+      .map((item, index) => (item ? companyData.tags[index] : null))
+      .filter((item) => item !== null) // 只保留不为null的元素
+  }
 }
 
 const refresh = () => {
   const selectData = handelSelectedData()
+  if (selectData.company.length === 0 || selectData.searchType.length === 0) {
+    message.error('至少选择一个公司和搜索类型！')
+    return
+  }
   startTime = Date.now()
   btnLoading.value = true
   axios
@@ -106,36 +111,36 @@ const searchTypeInputRef = ref()
 const searchTypeData = reactive({
   tags: [] as string[],
   inputVisible: false,
-  inputValue: '',
+  inputValue: ''
 })
 const companyInputRef = ref()
 const companyData = reactive({
   tags: [] as string[],
   inputVisible: false,
-  inputValue: '',
+  inputValue: ''
 })
 
 const handleInputConfirm = (type: string) => {
-  let currentData;
+  let currentData
   if (type === 'searchType') {
     currentData = searchTypeData
   } else {
     currentData = companyData
   }
-  const inputValue = currentData.inputValue;
-  let tags = currentData.tags;
+  const inputValue = currentData.inputValue
+  let tags = currentData.tags
   if (inputValue && !tags.includes(inputValue)) {
-    tags = [...tags, inputValue];
+    tags = [...tags, inputValue]
   }
   Object.assign(currentData, {
     tags,
     inputVisible: false,
-    inputValue: '',
-  });
-};
+    inputValue: ''
+  })
+}
 
 const showInput = (type: string) => {
-  let currentData, currentRef;
+  let currentData, currentRef
   if (type === 'searchType') {
     currentData = searchTypeData
     currentRef = searchTypeInputRef
@@ -143,24 +148,24 @@ const showInput = (type: string) => {
     currentData = companyData
     currentRef = companyInputRef
   }
-  currentData.inputVisible = true;
+  currentData.inputVisible = true
   nextTick(() => {
-    currentRef.value.focus();
-  });
-};
+    currentRef.value.focus()
+  })
+}
 
 const removeTag = (tag: string, type: string) => {
-  let currentData;
+  let currentData
   if (type === 'searchType') {
     currentData = searchTypeData
   } else {
     currentData = companyData
   }
-  currentData.tags = currentData.tags.filter(item => item !== tag)
+  currentData.tags = currentData.tags.filter((item) => item !== tag)
 }
 
 const editTag = (currentType: boolean, type: string) => {
-  let currentData;
+  let currentData
   if (type === 'searchType') {
     currentData = editSearchType
   } else {
@@ -171,13 +176,13 @@ const editTag = (currentType: boolean, type: string) => {
   if (currentType) {
     axios.post('/api/updateSearchData', {
       searchType: searchTypeData.tags,
-      company: companyData.tags,
+      company: companyData.tags
     })
   }
 }
 
 const selectAll = (type: string) => {
-  let currentSelectData;
+  let currentSelectData
   let currentDataArray
   if (type === 'searchType') {
     currentSelectData = selectedSearchType
@@ -248,7 +253,13 @@ init()
               </div>
               <div v-show="editSearchType" class="editTag">
                 <a-space :size="[0, 'small']" wrap>
-                  <a-tag v-for="tag in searchTypeData.tags" :key="tag" :bordered="false" closable @close="removeTag(tag, 'searchType')">
+                  <a-tag
+                    v-for="tag in searchTypeData.tags"
+                    :key="tag"
+                    :bordered="false"
+                    closable
+                    @close="removeTag(tag, 'searchType')"
+                  >
                     {{ tag }}
                   </a-tag>
                   <a-input
@@ -261,17 +272,31 @@ init()
                     @blur="handleInputConfirm('searchType')"
                     @keyup.enter="handleInputConfirm('searchType')"
                   />
-                  <a-tag v-else style="background: #fff; border-style: dashed" @click="showInput('searchType')">
+                  <a-tag
+                    v-else
+                    style="background: #fff; border-style: dashed"
+                    @click="showInput('searchType')"
+                  >
                     <PlusOutlined />
                     新增
                   </a-tag>
                 </a-space>
               </div>
               <a-space>
-                <a-button v-show="!editSearchType" class="edit" size="small" @click="selectAll('searchType')">
+                <a-button
+                  v-show="!editSearchType"
+                  class="edit"
+                  size="small"
+                  @click="selectAll('searchType')"
+                >
                   全选
                 </a-button>
-                <a-button class="edit" type="primary" size="small" @click="editTag(editSearchType, 'searchType')">
+                <a-button
+                  class="edit"
+                  type="primary"
+                  size="small"
+                  @click="editTag(editSearchType, 'searchType')"
+                >
                   {{ editSearchType ? '完成编辑' : '编辑' }}
                 </a-button>
               </a-space>
@@ -288,7 +313,13 @@ init()
               </div>
               <div v-show="editCompany" class="editTag">
                 <a-space :size="[0, 'small']" wrap>
-                  <a-tag v-for="tag in companyData.tags" :key="tag" :bordered="false" closable @close="removeTag(tag, 'company')">
+                  <a-tag
+                    v-for="tag in companyData.tags"
+                    :key="tag"
+                    :bordered="false"
+                    closable
+                    @close="removeTag(tag, 'company')"
+                  >
                     {{ tag }}
                   </a-tag>
                   <a-input
@@ -301,17 +332,31 @@ init()
                     @blur="handleInputConfirm('company')"
                     @keyup.enter="handleInputConfirm('company')"
                   />
-                  <a-tag v-else style="background: #fff; border-style: dashed" @click="showInput('company')">
+                  <a-tag
+                    v-else
+                    style="background: #fff; border-style: dashed"
+                    @click="showInput('company')"
+                  >
                     <PlusOutlined />
                     新增
                   </a-tag>
                 </a-space>
               </div>
               <a-space>
-                <a-button v-show="!editSearchType" class="edit" size="small" @click="selectAll('company')">
+                <a-button
+                  v-show="!editSearchType"
+                  class="edit"
+                  size="small"
+                  @click="selectAll('company')"
+                >
                   全选
                 </a-button>
-                <a-button class="edit" type="primary" size="small" @click="editTag(editCompany, 'company')">
+                <a-button
+                  class="edit"
+                  type="primary"
+                  size="small"
+                  @click="editTag(editCompany, 'company')"
+                >
                   {{ editCompany ? '完成编辑' : '编辑' }}
                 </a-button>
               </a-space>
