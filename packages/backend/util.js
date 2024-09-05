@@ -7,6 +7,7 @@ const __dirname = dirname(__filename);
 
 const originFilterPath = path.join(__dirname, "filter.json");
 const currentFilterPath = path.join(__dirname, "currentFilter.json");
+const imgsPath = path.join(__dirname, "/imgs");
 const originFilter = await fse.readJson(originFilterPath);
 const currentFilter = await fse.readJson(currentFilterPath);
 
@@ -88,11 +89,11 @@ export const compare = async () => {
   };
 };
 
-// 增量更新newsArr文件
-export const dealFile = async (path, compareRes, updateNewsArr) => {
+// 增量更新newsArr文件和imgs文件夹
+export const dealFile = async (newsArrPath, compareRes, updateNewsArr) => {
   try {
     // 读取文件
-    const jsonData = await fse.readJson(path);
+    const jsonData = await fse.readJson(newsArrPath);
     const tempSet = new Set(jsonData);
     // 处理新增
     compareRes.searchTypeResult.added.forEach((item) => {
@@ -101,6 +102,7 @@ export const dealFile = async (path, compareRes, updateNewsArr) => {
         news: [],
       };
       tempSet.add(newObj); // 添加到 Set 中
+      fse.mkdirsSync(path.join(imgsPath, item));
     });
 
     tempSet.forEach((item) => {
@@ -111,6 +113,7 @@ export const dealFile = async (path, compareRes, updateNewsArr) => {
             company: childrenItem,
             news: [],
           });
+          fse.mkdirsSync(path.join(imgsPath, item.type, childrenItem));
         });
       } else {
         //非新增搜索类型只需要增量添加
@@ -119,6 +122,7 @@ export const dealFile = async (path, compareRes, updateNewsArr) => {
             company: childrenItem,
             news: [],
           });
+          fse.mkdirsSync(path.join(imgsPath, item.type, childrenItem));
         });
       }
     });
@@ -142,7 +146,7 @@ export const dealFile = async (path, compareRes, updateNewsArr) => {
     const temArr = Array.from(tempSet);
     updateNewsByTypeAndCompany(temArr, updateNewsArr);
     // 写入文件
-    await fse.writeJson(path, temArr, { spaces: 2 });
+    await fse.writeJson(newsArrPath, temArr, { spaces: 2 });
     console.log("File has been updated");
   } catch (err) {
     console.error("Error:", err);

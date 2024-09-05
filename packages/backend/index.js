@@ -123,9 +123,9 @@ const saveNewsInfo = async (page, newsArr) => {
   let progress = 0;
   wsData.currentStage = "保存新闻图片";
   // 定义文件夹路径
-  const imgsDir = path.join(__dirname, "imgs");
-  createOrClearDirectory(imgsDir);
-  console.log(newsArr);
+  // const imgsDir = path.join(__dirname, "imgs");
+  // createOrClearDirectory(imgsDir);
+  // console.log(newsArr);
   for (const item of newsArr) {
     const typeDir = path.join(imgsDir, item.type);
     fs.mkdirSync(typeDir);
@@ -246,10 +246,10 @@ const updateFilterData = async (updateNewsArr) => {
   const dataFilePath = path.join(__dirname, "newsArr.json");
   const res = await compare();
   await dealFile(dataFilePath, res, updateNewsArr);
-  await updateFilter();
+  // await updateFilter();
 };
 
-const loadNewsInfo = async (page, companies) => {
+const loadAndUpdateNewsInfo = async (page, companies) => {
   wsData.currentStage = "搜索选中新闻信息";
   const updateNewsArr = await getNewsInfo(page, companies);
   await updateFilterData(updateNewsArr);
@@ -257,9 +257,9 @@ const loadNewsInfo = async (page, companies) => {
 
 const loadFilterData = async () => {
   const dataFilePath = path.join(__dirname, "selectedFilter.json");
-  const data = await fse.readFile(dataFilePath, "utf8");
-  searchTypeArr = JSON.parse(data).searchType;
-  companies = JSON.parse(data).company;
+  const data = await fse.readJson(dataFilePath);
+  searchTypeArr = data.searchType;
+  companies = data.company;
 };
 
 (async () => {
@@ -277,12 +277,11 @@ const loadFilterData = async () => {
   wsData.currentStage = "none";
   wsData.progress = 0;
 
-  let newsArr;
-  newsArr = await loadNewsInfo(page, companies);
+  const newsArr = await loadAndUpdateNewsInfo(page, companies);
   console.log(newsArr);
-  //
+
   // await saveNewsInfo(page, newsArr);
-  // //
+
   // await generateJSON(newsArr);
   //
   // console.log("数据更新完毕！");
