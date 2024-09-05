@@ -26,21 +26,15 @@ const handelSelectedData = () => {
   return {
     searchType: selectedSearchType.value
       .map((item, index) => (item ? searchTypeData.tags[index] : null))
-      .filter((item) => item !== null), // 只保留不为null的元素
+      .filter(item => item !== null), // 只保留不为null的元素
 
     company: selectedCompany.value
       .map((item, index) => (item ? companyData.tags[index] : null))
-      .filter((item) => item !== null) // 只保留不为null的元素
+      .filter(item => item !== null), // 只保留不为null的元素
   }
 }
 
 const refresh = async () => {
-  // 更新后端过滤条件数据
-  await axios.post('/api/updateSearchData', {
-    searchType: searchTypeData.tags,
-    company: companyData.tags
-  })
-
   const selectData = handelSelectedData()
   if (selectData.company.length === 0 || selectData.searchType.length === 0) {
     message.error('至少选择一个公司和搜索类型！')
@@ -117,13 +111,13 @@ const searchTypeInputRef = ref()
 const searchTypeData = reactive({
   tags: [] as string[],
   inputVisible: false,
-  inputValue: ''
+  inputValue: '',
 })
 const companyInputRef = ref()
 const companyData = reactive({
   tags: [] as string[],
   inputVisible: false,
-  inputValue: ''
+  inputValue: '',
 })
 
 const handleInputConfirm = (type: string) => {
@@ -141,7 +135,7 @@ const handleInputConfirm = (type: string) => {
   Object.assign(currentData, {
     tags,
     inputVisible: false,
-    inputValue: ''
+    inputValue: '',
   })
 }
 
@@ -167,15 +161,22 @@ const removeTag = (tag: string, type: string) => {
   } else {
     currentData = companyData
   }
-  currentData.tags = currentData.tags.filter((item) => item !== tag)
+  currentData.tags = currentData.tags.filter(item => item !== tag)
 }
 
-const editTag = (type: string) => {
+const editTag = async (type: string) => {
   let currentData
   if (type === 'searchType') {
     currentData = editSearchType
   } else {
     currentData = editCompany
+  }
+  if (currentData) {
+    // 更新后端过滤条件数据
+    await axios.post('/api/updateSearchData', {
+      searchType: searchTypeData.tags,
+      company: companyData.tags,
+    })
   }
   currentData.value = !currentData.value
 }

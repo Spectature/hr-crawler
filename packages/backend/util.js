@@ -5,40 +5,16 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const originFilterPath = path.join(__dirname, "filter.json");
+const currentFilterPath = path.join(__dirname, "currentFilter.json");
+const originFilter = await fse.readJson(originFilterPath);
+const currentFilter = await fse.readJson(currentFilterPath);
+
 // 创建或清空文件夹
 export const createOrClearDirectory = (dirPath) => {
   // 清空或创建目录
   fse.emptyDirSync(dirPath);
 };
-
-// 递归遍历文件夹
-export async function buildTree(dir) {
-  const files = await fse.readdir(dir);
-  const tree = {};
-
-  for (const file of files) {
-    const fullPath = path.join(dir, file);
-    const stat = await fse.stat(fullPath);
-
-    if (stat.isDirectory()) {
-      // 递归调用构建子树
-      tree[file] = await buildTree(fullPath);
-    } else if (stat.isFile()) {
-      // 如果是图片文件，放在叶子节点的数组中
-      if (/\.(jpg|jpeg|png|gif)$/i.test(fullPath)) {
-        if (!Array.isArray(tree)) {
-          tree[file] = undefined;
-        }
-
-        tree[file] = fullPath
-          .replace("imgs\\", "http:\\\\localhost:8080\\")
-          .replace(/[<>：？"|?*\x00-\x1F]/g, "");
-      }
-    }
-  }
-
-  return tree;
-}
 
 // 对比两个字符串数组
 export function compareStringArrays(template, target) {
@@ -68,41 +44,86 @@ export function compareStringArrays(template, target) {
   return result;
 }
 
+// 对比filter和currentFilter区别
 export const compare = async () => {
-  const originFilterPath = path.join(__dirname, "filter.json");
-  const currentFilterPath = path.join(__dirname, "currentFilter.json");
-  const selectedFilterPath = path.join(__dirname, "selectedFilterPath.json");
-  const originFilter = await fse.readFile(originFilterPath, "utf8");
-  const currentFilter = await fse.readFile(currentFilterPath, "utf8");
-  const selectedFilter = await fse.readFile(selectedFilterPath, "utf8");
+  // const selectedFilterPath = path.join(__dirname, "selectedFilter.json");
+  // const selectedFilter = await fse.readJson(selectedFilterPath);
   const searchTypeResult = compareStringArrays(
-    JSON.parse(originFilter).searchType,
-    JSON.parse(currentFilter).searchType,
+    originFilter.searchType,
+    currentFilter.searchType,
   );
   const companyResult = compareStringArrays(
-    JSON.parse(originFilter).company,
-    JSON.parse(currentFilter).company,
+    originFilter.company,
+    currentFilter.company,
   );
 
   return {
-    searchTypeResult: {
-      add: getArrayIntersection(
-        searchTypeResult.added,
-        JSON.parse(selectedFilter.searchType),
-      ),
-      removed: searchTypeResult.removed,
-    },
+    searchTypeResult,
     companyResult,
+    currentFilter,
   };
 };
 
-// 获取两个数组的交集
-function getArrayIntersection(arr1, arr2) {
-  // 将第一个数组转换为 Set
-  const set1 = new Set(arr1);
+// 增量更新newsArr文件
+export const dealFile = async (path, compareRes) => {
+  try {
+    // 读取文件
+    const jsonData = await fse.readJson(path);
+    const tempSet = new Set(jsonData);
+    // 处理新增
+    compareRes.searchTypeResult.added.forEach((item) => {
+      const newObj = {
+        type: item,
+        news: [],
+      };
+      tempSet.add(newObj); // 添加到 Set 中
+    });
 
-  // 过滤第二个数组中的元素，保留那些在 set1 中存在的元素
-  return arr2.filter((item) => set1.has(item));
-}
+    tempSet.forEach((item) => {
+      if (compareRes.searchTypeResult.added.includes(item.type)) {
+        //新增的搜索类型需要全量添加子公司
+        compareRes.currentFilter.company.forEach((childrenItem) => {
+          item.news.push({
+            company: childrenItem,
+            news: [],
+          });
+        });
+      } else {
+        //非新增搜索类型只需要增量添加
+        compareRes.companyResult.added.forEach((childrenItem) => {
+          item.news.push({
+            company: childrenItem,
+            news: [],
+          });
+        });
+      }
+    });
 
-export const dealFile = () => {};
+    // 处理删除
+    compareRes.searchTypeResult.removed.forEach((item) => {
+      tempSet.forEach((tempItem) => {
+        if (tempItem.type === item) {
+          tempSet.delete(tempItem);
+        }
+      });
+    });
+
+    tempSet.forEach((item) => {
+      item.news = item.news.filter((item) => {
+        return !compareRes.companyResult.removed.includes(item.company);
+      });
+    });
+
+    // 写入文件
+    await fse.writeJson(path, Array.from(tempSet), { spaces: 2 });
+    console.log("File has been updated");
+  } catch (err) {
+    console.error("Error:", err);
+  }
+};
+
+//覆盖filter文件
+
+export const updateFilter = async () => {
+  await fse.writeJson(originFilterPath, currentFilter, { spaces: 2 });
+};

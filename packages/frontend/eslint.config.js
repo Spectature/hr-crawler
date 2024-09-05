@@ -30,7 +30,7 @@ export default antfu(
     },
   },
   {
-    files: ['**/*.vue', '**/*.ts'],
+    files: ['**/*.vue', '**/*.ts', '**/*.js'],
     rules: {
       'curly': 'off',
       'default-case': 'error',
@@ -61,6 +61,7 @@ export default antfu(
       'no-useless-escape': 'error',
       'no-underscore-dangle': 'error',
 
+      'ts/no-use-before-define': 0,
     },
   },
 )

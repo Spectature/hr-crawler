@@ -7,6 +7,8 @@ import {
   compare,
   compareStringArrays,
   createOrClearDirectory,
+  dealFile,
+  updateFilter,
 } from "./util.js";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
@@ -240,29 +242,17 @@ const generateJSON = async (newsArr) => {
   wsData.progress = 100;
 };
 
+const updateFilterData = async () => {
+  const dataFilePath = path.join(__dirname, "newsArr.json");
+  const res = await compare();
+  await dealFile(dataFilePath, res);
+  await updateFilter();
+};
+
 const loadNewsInfo = async (page, companies) => {
   wsData.currentStage = "搜索选中新闻信息";
-  let newsArr;
-
-  // try {
-  //   const dataFilePath = path.join(__dirname, "newsArr.json");
-  //   const data = await fse.readFile(dataFilePath, "utf8");
-  //
-  //   if (data) {
-  //     // 解析 JSON 数据并返回
-  //     newsArr = JSON.parse(data);
-  //     wsData.progress = 10;
-  //   } else {
-  //     throw new Error("文件为空");
-  //   }
-  // } catch (err) {
-  //   console.error("读取文件失败或文件为空:", err);
-  newsArr = await getNewsInfo(page, companies);
-  const res = compare();
-  // await fse.writeJson(dataFilePath, newsArr, { spaces: 2 });
-  // }
-
-  return newsArr;
+  await updateFilterData();
+  return await getNewsInfo(page, companies);
 };
 
 const loadFilterData = async () => {
@@ -276,7 +266,7 @@ const loadFilterData = async () => {
   await loadFilterData();
 
   const browser = await chromium.launch({
-    headless: false, // false为显示浏览器，true为不显示浏览器
+    headless: true, // false为显示浏览器，true为不显示浏览器
     executablePath:
       "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // 替换为你本地的 Chromium 路径
   });
@@ -289,7 +279,7 @@ const loadFilterData = async () => {
 
   let newsArr;
   newsArr = await loadNewsInfo(page, companies);
-  // console.log(newsArr);
+  console.log(newsArr);
   //
   // await saveNewsInfo(page, newsArr);
   // //
