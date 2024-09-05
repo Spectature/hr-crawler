@@ -242,17 +242,17 @@ const generateJSON = async (newsArr) => {
   wsData.progress = 100;
 };
 
-const updateFilterData = async () => {
+const updateFilterData = async (updateNewsArr) => {
   const dataFilePath = path.join(__dirname, "newsArr.json");
   const res = await compare();
-  await dealFile(dataFilePath, res);
+  await dealFile(dataFilePath, res, updateNewsArr);
   await updateFilter();
 };
 
 const loadNewsInfo = async (page, companies) => {
   wsData.currentStage = "搜索选中新闻信息";
-  await updateFilterData();
-  return await getNewsInfo(page, companies);
+  const updateNewsArr = await getNewsInfo(page, companies);
+  await updateFilterData(updateNewsArr);
 };
 
 const loadFilterData = async () => {

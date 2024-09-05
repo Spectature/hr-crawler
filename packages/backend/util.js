@@ -44,10 +44,34 @@ export function compareStringArrays(template, target) {
   return result;
 }
 
+// 增量更新数组数据
+function updateNewsByTypeAndCompany(fullArray, partArray) {
+  partArray.forEach((partItem) => {
+    // 找到与 partItem.type 匹配的对象
+    const fullItem = fullArray.find((fItem) => fItem.type === partItem.type);
+
+    if (fullItem && Array.isArray(fullItem.news)) {
+      // 遍历 partItem 中的 news 列表
+      partItem.news.forEach((partNewsItem) => {
+        // 在 fullItem.news 中查找匹配的 company
+        const newsItem = fullItem.news.find(
+          (nItem) => nItem.company === partNewsItem.company,
+        );
+
+        if (newsItem) {
+          // 找到对应的 company，更新 news 字段
+          newsItem.news = partNewsItem.news;
+        } else {
+          // 如果找不到对应的 company，可以选择插入新数据
+          fullItem.news.push(partNewsItem);
+        }
+      });
+    }
+  });
+}
+
 // 对比filter和currentFilter区别
 export const compare = async () => {
-  // const selectedFilterPath = path.join(__dirname, "selectedFilter.json");
-  // const selectedFilter = await fse.readJson(selectedFilterPath);
   const searchTypeResult = compareStringArrays(
     originFilter.searchType,
     currentFilter.searchType,
@@ -65,7 +89,7 @@ export const compare = async () => {
 };
 
 // 增量更新newsArr文件
-export const dealFile = async (path, compareRes) => {
+export const dealFile = async (path, compareRes, updateNewsArr) => {
   try {
     // 读取文件
     const jsonData = await fse.readJson(path);
@@ -114,8 +138,11 @@ export const dealFile = async (path, compareRes) => {
       });
     });
 
+    // 处理更新
+    const temArr = Array.from(tempSet);
+    updateNewsByTypeAndCompany(temArr, updateNewsArr);
     // 写入文件
-    await fse.writeJson(path, Array.from(tempSet), { spaces: 2 });
+    await fse.writeJson(path, temArr, { spaces: 2 });
     console.log("File has been updated");
   } catch (err) {
     console.error("Error:", err);
