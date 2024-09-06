@@ -230,9 +230,7 @@ const loadFilterData = async () => {
 
   // 关闭 WebSocket 连接立即
   wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.close(); // 优雅关闭客户端，等待消息发送完毕
-    }
+    client.close(); // 优雅关闭客户端，等待消息发送完毕
   });
 
   wss.close(() => {

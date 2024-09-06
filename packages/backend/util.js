@@ -14,12 +14,6 @@ const currentFilter = await fse.readJson(currentFilterPath);
 
 let globalUpdateProgressFunc;
 
-// 创建或清空文件夹
-export const createOrClearDirectory = (dirPath) => {
-  // 清空或创建目录
-  fse.emptyDirSync(dirPath);
-};
-
 // 对比两个字符串数组
 export function compareStringArrays(template, target) {
   const result = {
@@ -59,18 +53,22 @@ const createSubThread = (
 ) => {
   return new Promise((resolve, reject) => {
     const worker = new Worker("./worker.js"); // 每个worker运行同一个子线程文件
-
+    let progress;
     // 接收子线程发回的数据
     worker.on("message", (message) => {
-      if (message === "done") {
+      if (message === "onceDone") {
         workersDoneCount.value++;
+        progress =
+          10 +
+          (workersDoneCount.value * 85) /
+            updateNewsArr.length /
+            item.news.length /
+            10;
+        globalUpdateProgressFunc(progress);
+      } else if (message === "done") {
+        console.log("Worker${index} 完成任务,当前进度:", progress);
+        resolve(message); // 当 worker 完成任务时，resolve Promise
       }
-      const progress =
-        10 +
-        (workersDoneCount.value * 85) / updateNewsArr.length / item.news.length;
-      globalUpdateProgressFunc(progress);
-      console.log("Worker${index} 完成任务,当前进度:", progress);
-      resolve(message); // 当 worker 完成任务时，resolve Promise
     });
 
     // 捕获子线程中的错误
@@ -94,10 +92,11 @@ const createSubThread = (
   });
 };
 
+const workersDoneCount = {
+  value: 0,
+};
+
 const updateImgs = async (updateNewsArr) => {
-  const workersDoneCount = {
-    value: 0,
-  };
   updateNewsArr.forEach((item) => {
     item.news.forEach((childrenItem, index) => {
       workers.push(

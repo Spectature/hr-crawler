@@ -62,6 +62,7 @@ parentPort.on("message", async (message) => {
         console.log(e, inputPath);
       }
     }
+    parentPort.postMessage("onceDone");
   }
   await browser.close();
   // 发送结果回主线程
