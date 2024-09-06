@@ -1,6 +1,9 @@
 import fse from "fs-extra";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
+import sharp from "sharp";
+import fs from "fs";
+import { Worker, isMainThread, parentPort } from "worker_threads";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -10,6 +13,8 @@ const currentFilterPath = path.join(__dirname, "currentFilter.json");
 const imgsPath = path.join(__dirname, "/imgs");
 const originFilter = await fse.readJson(originFilterPath);
 const currentFilter = await fse.readJson(currentFilterPath);
+
+let globalUpdateProgressFunc;
 
 // 创建或清空文件夹
 export const createOrClearDirectory = (dirPath) => {
@@ -44,6 +49,50 @@ export function compareStringArrays(template, target) {
 
   return result;
 }
+
+let globalPage;
+const workers = [];
+const createSubThread = (item, childrenItem, index) => {
+  const worker = new Worker("./worker.js"); // 每个worker运行同一个子线程文件
+  let workersDoneCount = 0;
+  // 保存每个worker实例
+  workers.push(worker);
+
+  // 接收子线程发回的数据
+  worker.on("message", (message) => {
+    if (message === "done") {
+      workersDoneCount++;
+    }
+    const progress =
+      10 + (workersDoneCount * 85) / item.length / childrenItem.length;
+    globalUpdateProgressFunc(progress);
+    console.log(`来自子线程 ${index} 的消息:`, message);
+  });
+
+  // 捕获子线程中的错误
+  worker.on("error", (error) => {
+    console.error(`子线程 ${index} 错误:`, error);
+  });
+
+  // 捕获子线程退出事件
+  worker.on("exit", (code) => {
+    console.log(`子线程 ${index} 退出，退出码:`, code);
+  });
+
+  // 发送消息给子线程
+  worker.postMessage({
+    item,
+    childrenItem,
+  });
+};
+
+const updateImgs = async (updateNewsArr) => {
+  updateNewsArr.forEach((item) => {
+    item.news.forEach((childrenItem, index) => {
+      createSubThread(item, childrenItem, index);
+    });
+  });
+};
 
 // 增量更新数组数据
 function updateNewsByTypeAndCompany(fullArray, partArray) {
@@ -89,8 +138,16 @@ export const compare = async () => {
   };
 };
 
-// 增量更新newsArr文件和imgs文件夹
-export const dealFile = async (newsArrPath, compareRes, updateNewsArr) => {
+//  主入口 增量更新newsArr文件和imgs文件夹
+export const dealFile = async (
+  newsArrPath,
+  compareRes,
+  updateNewsArr,
+  page,
+  updateProgress,
+) => {
+  globalPage = page;
+  globalUpdateProgressFunc = updateProgress;
   try {
     // 读取文件
     const jsonData = await fse.readJson(newsArrPath);
@@ -151,6 +208,7 @@ export const dealFile = async (newsArrPath, compareRes, updateNewsArr) => {
     // 处理更新
     const temArr = Array.from(tempSet);
     updateNewsByTypeAndCompany(temArr, updateNewsArr);
+    await updateImgs(updateNewsArr);
     // 写入文件
     await fse.writeJson(newsArrPath, temArr, { spaces: 2 });
     console.log("File has been updated");

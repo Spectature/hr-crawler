@@ -5,7 +5,6 @@ import fse from "fs-extra";
 import path from "path";
 import {
   compare,
-  compareStringArrays,
   createOrClearDirectory,
   dealFile,
   updateFilter,
@@ -242,17 +241,22 @@ const generateJSON = async (newsArr) => {
   wsData.progress = 100;
 };
 
-const updateFilterData = async (updateNewsArr) => {
+const updateProgress = (currentProgress) => {
+  wsData.progress = currentProgress;
+};
+
+const updateFilterData = async (updateNewsArr, page) => {
+  wsData.currentStage = "保存新闻图片";
   const dataFilePath = path.join(__dirname, "newsArr.json");
   const res = await compare();
-  await dealFile(dataFilePath, res, updateNewsArr);
+  await dealFile(dataFilePath, res, updateNewsArr, page, updateProgress);
   // await updateFilter();
 };
 
 const loadAndUpdateNewsInfo = async (page, companies) => {
   wsData.currentStage = "搜索选中新闻信息";
   const updateNewsArr = await getNewsInfo(page, companies);
-  await updateFilterData(updateNewsArr);
+  await updateFilterData(updateNewsArr, page);
 };
 
 const loadFilterData = async () => {
@@ -279,8 +283,6 @@ const loadFilterData = async () => {
 
   const newsArr = await loadAndUpdateNewsInfo(page, companies);
   console.log(newsArr);
-
-  // await saveNewsInfo(page, newsArr);
 
   // await generateJSON(newsArr);
   //
