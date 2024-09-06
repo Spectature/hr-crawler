@@ -132,11 +132,17 @@ export const dealFile = async (newsArrPath, compareRes, updateNewsArr) => {
       tempSet.forEach((tempItem) => {
         if (tempItem.type === item) {
           tempSet.delete(tempItem);
+          fse.removeSync(path.join(imgsPath, item));
         }
       });
     });
 
     tempSet.forEach((item) => {
+      item.news.forEach((newsItem) => {
+        if (compareRes.companyResult.removed.includes(newsItem.company)) {
+          fse.removeSync(path.join(imgsPath, item.type, newsItem.company));
+        }
+      });
       item.news = item.news.filter((item) => {
         return !compareRes.companyResult.removed.includes(item.company);
       });
