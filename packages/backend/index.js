@@ -187,7 +187,7 @@ const updateFilterData = async (updateNewsArr, page) => {
   const dataFilePath = path.join(__dirname, "newsArr.json");
   const res = await compare();
   await dealFile(dataFilePath, res, updateNewsArr, page, updateProgress);
-  // await updateFilter();
+  await updateFilter();
 };
 
 const loadAndUpdateNewsInfo = async (page, companies) => {

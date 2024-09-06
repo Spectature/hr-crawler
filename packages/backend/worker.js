@@ -3,6 +3,10 @@ import fse from "fs-extra";
 import sharp from "sharp";
 import fs from "fs";
 import { chromium } from "playwright";
+import { fileURLToPath } from "url";
+import path, { dirname } from "path";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 设置最大加载时间
 const maxLoadTime = 5000; // 5秒
@@ -17,6 +21,11 @@ const page = await browser.newPage();
 parentPort.on("message", async (message) => {
   console.log("子线程收到主线程消息:", message);
   const { item, childrenItem } = message;
+  const updateFolderPath = path.join(
+    __dirname,
+    `imgs/${item.type}/${childrenItem.company}`,
+  );
+  await fse.emptydir(updateFolderPath);
   for (const newsItem of childrenItem.news) {
     //需要替换掉所有特殊字符，不然无法重命名
     const inputPath = `imgs/${item.type}/${childrenItem.company}/${newsItem.id}&${newsItem.title.replace(/[\s<>:：？、%"|?*\x00-\x1F]/g, "")}.jpg`;
