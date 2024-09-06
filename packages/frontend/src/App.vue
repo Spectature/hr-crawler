@@ -48,8 +48,9 @@ const refresh = async () => {
       newArr.value = res.data
       console.log(res)
       if (res.data.status === 'success') {
-        // btnLoading.value = false
-        // window.location.reload()
+        // console.log('success')
+        btnLoading.value = false
+        window.location.reload()
       } else {
         btnLoading.value = false
         console.error('更新失败')
@@ -59,32 +60,32 @@ const refresh = async () => {
       console.log(err)
     })
 
-  // const socket = new WebSocket('ws://localhost:3001')
-  //
-  // // 当 WebSocket 连接打开时触发
-  // socket.onopen = () => {
-  //   console.log('WebSocket connection established')
-  //
-  //   // 向服务器发送消息
-  //   socket.send('Hello Server!')
-  // }
-  //
-  // // 当收到服务器消息时触发
-  // socket.onmessage = (event) => {
-  //   progressPercent.value = JSON.parse(event.data).progress
-  //   currentStage.value = JSON.parse(event.data).currentStage
-  //   console.log('Message from server!')
-  // }
-  //
-  // // 当 WebSocket 连接关闭时触发
-  // socket.onclose = () => {
-  //   console.log('WebSocket connection closed')
-  // }
-  //
-  // // 当发生错误时触发
-  // socket.onerror = (error) => {
-  //   console.error('WebSocket error:', error)
-  // }
+  const socket = new WebSocket('ws://localhost:3001')
+
+  // 当 WebSocket 连接打开时触发
+  socket.onopen = () => {
+    console.log('WebSocket connection established')
+
+    // 向服务器发送消息
+    socket.send('Hello Server!')
+  }
+
+  // 当收到服务器消息时触发
+  socket.onmessage = (event) => {
+    progressPercent.value = JSON.parse(event.data).progress
+    currentStage.value = JSON.parse(event.data).currentStage
+    console.log('Message from server!')
+  }
+
+  // 当 WebSocket 连接关闭时触发
+  socket.onclose = () => {
+    console.log('WebSocket connection closed')
+  }
+
+  // 当发生错误时触发
+  socket.onerror = (error) => {
+    console.error('WebSocket error:', error)
+  }
 }
 
 const elapsedTime = ref()

@@ -1,9 +1,7 @@
 import fse from "fs-extra";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
-import sharp from "sharp";
-import fs from "fs";
-import { Worker, isMainThread, parentPort } from "worker_threads";
+import { Worker } from "worker_threads";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -52,46 +50,75 @@ export function compareStringArrays(template, target) {
 
 let globalPage;
 const workers = [];
-const createSubThread = (item, childrenItem, index) => {
-  const worker = new Worker("./worker.js"); // 每个worker运行同一个子线程文件
-  let workersDoneCount = 0;
-  // 保存每个worker实例
-  workers.push(worker);
+const createSubThread = (
+  item,
+  childrenItem,
+  index,
+  workersDoneCount,
+  updateNewsArr,
+) => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker("./worker.js"); // 每个worker运行同一个子线程文件
 
-  // 接收子线程发回的数据
-  worker.on("message", (message) => {
-    if (message === "done") {
-      workersDoneCount++;
-    }
-    const progress =
-      10 + (workersDoneCount * 85) / item.length / childrenItem.length;
-    globalUpdateProgressFunc(progress);
-    console.log(`来自子线程 ${index} 的消息:`, message);
-  });
+    // 接收子线程发回的数据
+    worker.on("message", (message) => {
+      if (message === "done") {
+        workersDoneCount.value++;
+      }
+      const progress =
+        10 +
+        (workersDoneCount.value * 85) / updateNewsArr.length / item.news.length;
+      globalUpdateProgressFunc(progress);
+      console.log("Worker${index} 完成任务,当前进度:", progress);
+      resolve(message); // 当 worker 完成任务时，resolve Promise
+    });
 
-  // 捕获子线程中的错误
-  worker.on("error", (error) => {
-    console.error(`子线程 ${index} 错误:`, error);
-  });
+    // 捕获子线程中的错误
+    worker.on("error", (error) => {
+      console.error(`子线程 ${index} 错误:`, error);
+      reject(error); // 如果 worker 出现错误，reject Promise
+    });
 
-  // 捕获子线程退出事件
-  worker.on("exit", (code) => {
-    console.log(`子线程 ${index} 退出，退出码:`, code);
-  });
+    // 捕获子线程退出事件
+    worker.on("exit", (code) => {
+      if (code !== 0) {
+        reject(new Error(`Worker 退出码不为 0: ${code}`));
+      }
+    });
 
-  // 发送消息给子线程
-  worker.postMessage({
-    item,
-    childrenItem,
+    // 发送消息给子线程
+    worker.postMessage({
+      item,
+      childrenItem,
+    });
   });
 };
 
 const updateImgs = async (updateNewsArr) => {
+  const workersDoneCount = {
+    value: 0,
+  };
   updateNewsArr.forEach((item) => {
     item.news.forEach((childrenItem, index) => {
-      createSubThread(item, childrenItem, index);
+      workers.push(
+        createSubThread(
+          item,
+          childrenItem,
+          index,
+          workersDoneCount,
+          updateNewsArr,
+        ),
+      );
     });
   });
+
+  try {
+    // 等待所有 worker 完成
+    const results = await Promise.all(workers);
+    console.log("所有 Worker 已完成:", results);
+  } catch (error) {
+    console.error("有 Worker 失败:", error);
+  }
 };
 
 // 增量更新数组数据

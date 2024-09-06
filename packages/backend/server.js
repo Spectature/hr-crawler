@@ -84,6 +84,10 @@ app.post("/run-index", async (req, res) => {
     console.log(`进程结束 ${code}`);
     res.json({ status: "success", message: output });
   });
+
+  process.on("exit", (code) => {
+    console.log(`子进程退出，退出码: ${code}`);
+  });
 });
 
 // 获取当前数据时间

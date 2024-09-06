@@ -54,7 +54,7 @@ parentPort.on("message", async (message) => {
       }
     }
   }
-
+  await browser.close();
   // 发送结果回主线程
   parentPort.postMessage("done");
 });

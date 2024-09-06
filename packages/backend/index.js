@@ -1,14 +1,7 @@
 import { chromium } from "playwright";
-import sharp from "sharp";
-import fs from "fs";
 import fse from "fs-extra";
 import path from "path";
-import {
-  compare,
-  createOrClearDirectory,
-  dealFile,
-  updateFilter,
-} from "./util.js";
+import { compare, dealFile, updateFilter } from "./util.js";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
@@ -118,69 +111,6 @@ const getNewsInfo = async (page, companies) => {
   return typeNews;
 };
 
-const saveNewsInfo = async (page, newsArr) => {
-  let progress = 0;
-  wsData.currentStage = "保存新闻图片";
-  // 定义文件夹路径
-  // const imgsDir = path.join(__dirname, "imgs");
-  // createOrClearDirectory(imgsDir);
-  // console.log(newsArr);
-  for (const item of newsArr) {
-    const typeDir = path.join(imgsDir, item.type);
-    fs.mkdirSync(typeDir);
-    console.log("创建类型文件夹");
-    for (const typeItem of item.news) {
-      const companyDir = path.join(typeDir, typeItem.company);
-      fs.mkdirSync(companyDir);
-      console.log("创建子公司文件夹");
-      for (const newsItem of typeItem.news) {
-        progress++;
-        wsData.progress = formatter.format(
-          10 + (progress * 85) / companies.length / searchTypeArr.length / 10,
-        );
-
-        //需要替换掉所有特殊字符，不然无法重命名
-        const inputPath = `imgs/${item.type}/${typeItem.company}/${newsItem.id}&${newsItem.title.replace(/[\s<>:：？、%"|?*\x00-\x1F]/g, "")}.jpg`;
-        const tempPath = `imgs/${item.type}/${typeItem.company}/temp.jpg`;
-        // 设置最大加载时间
-        const maxLoadTime = 5000; // 5秒
-        try {
-          await Promise.race([
-            page.goto(newsItem.href),
-            new Promise((_, reject) =>
-              setTimeout(() => reject("Load Timeout"), maxLoadTime),
-            ),
-          ]);
-        } catch (e) {
-          console.log(e);
-        }
-
-        try {
-          // 如果页面在指定时间内加载完成，继续执行截图
-          await page.screenshot({
-            path: inputPath,
-            fullPage: true,
-          });
-        } catch (e) {
-          console.log(e, inputPath);
-        }
-
-        const exists = await fse.pathExists(inputPath);
-
-        if (exists) {
-          try {
-            await sharp(inputPath).jpeg({ quality: 50 }).toFile(tempPath);
-            // 将临时文件重命名为原始文件，覆盖原始文件
-            fs.renameSync(tempPath, inputPath);
-          } catch (e) {
-            console.log(e, inputPath);
-          }
-        }
-      }
-    }
-  }
-};
-
 //  ai总结部分
 const aiSummary = () => {
   axios
@@ -207,10 +137,17 @@ const aiSummary = () => {
     });
 };
 
-const generateJSON = async (newsArr) => {
+const generateJSON = async () => {
   const dataFilePath = path.join(__dirname, "imageData.json");
+  const newsArrPath = path.join(__dirname, "newsArr.json");
+  let temNewsArr;
+  try {
+    temNewsArr = await fse.readJson(newsArrPath);
+  } catch (e) {
+    console.log(e);
+  }
 
-  for (const searchType of newsArr) {
+  for (const searchType of temNewsArr) {
     for (const company of searchType.news) {
       for (const newsItem of company.news) {
         const directoryPath = path.join(
@@ -237,7 +174,7 @@ const generateJSON = async (newsArr) => {
       }
     }
   }
-  await fse.writeJson(dataFilePath, newsArr, { spaces: 2 });
+  await fse.writeJson(dataFilePath, temNewsArr, { spaces: 2 });
   wsData.progress = 100;
 };
 
@@ -281,13 +218,24 @@ const loadFilterData = async () => {
   wsData.currentStage = "none";
   wsData.progress = 0;
 
-  const newsArr = await loadAndUpdateNewsInfo(page, companies);
-  console.log(newsArr);
+  await loadAndUpdateNewsInfo(page, companies);
 
-  // await generateJSON(newsArr);
-  //
-  // console.log("数据更新完毕！");
-  // // 关闭浏览器
-  // await browser.close();
-  // clearInterval(wsInterval);
+  await generateJSON();
+
+  console.log("数据更新完毕！");
+  // 关闭浏览器
+  await browser.close();
+
+  clearInterval(wsInterval);
+
+  // 关闭 WebSocket 连接立即
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.close(); // 优雅关闭客户端，等待消息发送完毕
+    }
+  });
+
+  wss.close(() => {
+    console.log("WebSocket 服务器已关闭");
+  });
 })();
