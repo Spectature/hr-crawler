@@ -48,9 +48,12 @@ const refresh = async () => {
       newArr.value = res.data
       console.log(res)
       if (res.data.status === 'success') {
+        message.success('更新成功，1s后自动刷新页面！')
         // console.log('success')
         btnLoading.value = false
-        window.location.reload()
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
       } else {
         btnLoading.value = false
         console.error('更新失败')
