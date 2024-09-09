@@ -195,8 +195,8 @@ const selectAll = (type: string) => {
     currentSelectData = selectedCompany
     currentDataArray = companyData.tags
   }
-  currentDataArray.forEach(() => {
-    currentSelectData.value.push(true)
+  currentDataArray.forEach((item, index) => {
+    currentSelectData.value[index] = true
   })
 }
 
